@@ -1,0 +1,68 @@
+-- ==================================================================
+-- CORRECTED SPARQL Query for Web GUI
+-- ==================================================================
+-- Paste this into: https://lindas.admin.ch/sparql/
+-- Years: 2021-2026
+-- Expected results: ~100,000-500,000 rows
+-- Processing time: 1-3 minutes
+-- ==================================================================
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+
+SELECT
+  ?period
+  ?municipality
+  ?municipalityLabel
+  ?operator
+  ?operatorLabel
+  ?category
+  ?categoryLabel
+  ?product
+  ?productLabel
+  ?total
+  ?gridusage
+  ?energy
+  ?aidfee
+  ?charge
+  ?meteringrate
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       <https://energy.ld.admin.ch/elcom/electricityprice/dimension/period> ?period ;
+       <https://energy.ld.admin.ch/elcom/electricityprice/dimension/total> ?total .
+  
+  # Optional dimensions
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/municipality> ?municipality . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/operator> ?operator . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/category> ?category . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/product> ?product . }
+  
+  # Optional price components (all under dimension/, NOT measure/)
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/gridusage> ?gridusage . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/energy> ?energy . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/aidfee> ?aidfee . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/charge> ?charge . }
+  OPTIONAL { ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/meteringrate> ?meteringrate . }
+  
+  # Get human-readable labels
+  OPTIONAL { ?municipality schema:name ?municipalityLabel . }
+  OPTIONAL { ?operator schema:name ?operatorLabel . }
+  OPTIONAL { ?category schema:name ?categoryLabel . }
+  OPTIONAL { ?product schema:name ?productLabel . }
+  
+  # Filter for years 2021-2026
+  FILTER(STR(?period) IN ("2021", "2022", "2023", "2024", "2025", "2026"))
+}
+ORDER BY ?municipalityLabel ?operatorLabel ?period ?categoryLabel ?productLabel
+
+-- ==================================================================
+-- IMPORTANT NOTE:
+-- ==================================================================
+-- All properties (including total, energy, gridusage, etc.) are under
+-- /dimension/ path, NOT /measure/ path!
+--
+-- CORRECT:   <https://energy.ld.admin.ch/elcom/electricityprice/dimension/total>
+-- INCORRECT: <https://energy.ld.admin.ch/elcom/electricityprice/measure/total>
+-- ==================================================================
+
