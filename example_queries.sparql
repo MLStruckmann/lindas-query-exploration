@@ -1,0 +1,333 @@
+-- ==================================================================
+-- Swiss Electricity Price SPARQL Query Examples
+-- ==================================================================
+-- Endpoint: https://lindas.admin.ch/query
+-- Graph: https://lindas.admin.ch/elcom/electricityprice
+-- ==================================================================
+
+-- ------------------------------------------------------------------
+-- Query 1: Test Connection (Minimal Query)
+-- ------------------------------------------------------------------
+-- Returns: One observation to verify endpoint access
+-- Use this first to test connectivity
+
+PREFIX cube: <https://cube.link/>
+
+SELECT *
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation .
+}
+LIMIT 1
+
+
+-- ------------------------------------------------------------------
+-- Query 2: Get 10 Sample Observations
+-- ------------------------------------------------------------------
+-- Returns: 10 complete observations with all properties
+-- Use this to explore the data structure
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT *
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period ?period ;
+       elcom:category ?category ;
+       elcom:product ?product ;
+       measure:total ?total .
+
+  OPTIONAL { ?obs measure:gridusage ?gridusage . }
+  OPTIONAL { ?obs measure:energy ?energy . }
+  OPTIONAL { ?obs measure:aidfee ?aidfee . }
+}
+LIMIT 10
+
+
+-- ------------------------------------------------------------------
+-- Query 3: Get Prices for 2024 with Labels
+-- ------------------------------------------------------------------
+-- Returns: All prices for 2024 with human-readable labels
+-- Includes municipality name, operator name, category label
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT
+  ?municipalityLabel
+  ?operatorLabel
+  ?categoryLabel
+  ?productLabel
+  ?total
+  ?gridusage
+  ?energy
+  ?aidfee
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period "2024" ;
+       elcom:category ?category ;
+       elcom:product ?product ;
+       measure:total ?total .
+
+  OPTIONAL { ?obs measure:gridusage ?gridusage . }
+  OPTIONAL { ?obs measure:energy ?energy . }
+  OPTIONAL { ?obs measure:aidfee ?aidfee . }
+
+  # Get human-readable labels
+  OPTIONAL { ?municipality schema:name ?municipalityLabel . }
+  OPTIONAL { ?operator schema:name ?operatorLabel . }
+  OPTIONAL { ?category schema:name ?categoryLabel . }
+  OPTIONAL { ?product schema:name ?productLabel . }
+}
+ORDER BY ?municipalityLabel ?operatorLabel ?categoryLabel
+LIMIT 100
+
+
+-- ------------------------------------------------------------------
+-- Query 4: Get All Available Years
+-- ------------------------------------------------------------------
+-- Returns: List of all years in the dataset
+-- Use this to discover what time periods are available
+
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+
+SELECT DISTINCT ?year
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:period ?year .
+}
+ORDER BY DESC(?year)
+
+
+-- ------------------------------------------------------------------
+-- Query 5: Get All Categories
+-- ------------------------------------------------------------------
+-- Returns: All consumption categories (H1-H7, C1-C7)
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+
+SELECT DISTINCT ?category ?categoryLabel
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:category ?category .
+
+  OPTIONAL { ?category schema:name ?categoryLabel . }
+}
+ORDER BY ?category
+
+
+-- ------------------------------------------------------------------
+-- Query 6: Get Prices for Specific Municipality (Zürich)
+-- ------------------------------------------------------------------
+-- Returns: All electricity prices for Zürich
+-- Replace the municipality filter for other cities
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT
+  ?municipalityLabel
+  ?operatorLabel
+  ?period
+  ?categoryLabel
+  ?total
+  ?gridusage
+  ?energy
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period ?period ;
+       elcom:category ?category ;
+       measure:total ?total .
+
+  OPTIONAL { ?obs measure:gridusage ?gridusage . }
+  OPTIONAL { ?obs measure:energy ?energy . }
+
+  ?municipality schema:name ?municipalityLabel .
+  ?operator schema:name ?operatorLabel .
+  ?category schema:name ?categoryLabel .
+
+  # Filter for Zürich
+  FILTER(CONTAINS(LCASE(?municipalityLabel), "zürich"))
+}
+ORDER BY ?period ?categoryLabel
+
+
+-- ------------------------------------------------------------------
+-- Query 7: Get Average Price by Year
+-- ------------------------------------------------------------------
+-- Returns: Average electricity prices per year across all municipalities
+
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT
+  ?period
+  (AVG(?total) AS ?avgTotal)
+  (AVG(?gridusage) AS ?avgGridusage)
+  (AVG(?energy) AS ?avgEnergy)
+  (COUNT(?obs) AS ?observations)
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:period ?period ;
+       measure:total ?total .
+
+  OPTIONAL { ?obs measure:gridusage ?gridusage . }
+  OPTIONAL { ?obs measure:energy ?energy . }
+}
+GROUP BY ?period
+ORDER BY ?period
+
+
+-- ------------------------------------------------------------------
+-- Query 8: Get Complete Dataset (Years 2021-2026)
+-- ------------------------------------------------------------------
+-- Returns: Full dataset with all price components
+-- WARNING: This returns 100K+ rows and may take 1-2 minutes
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT
+  ?municipality
+  ?municipalityLabel
+  ?operator
+  ?operatorLabel
+  ?period
+  ?category
+  ?categoryLabel
+  ?product
+  ?productLabel
+  ?total
+  ?gridusage
+  ?energy
+  ?aidfee
+  ?charge
+  ?meteringrate
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period ?period ;
+       elcom:category ?category ;
+       elcom:product ?product ;
+       measure:total ?total .
+
+  # Optional price components
+  OPTIONAL { ?obs measure:gridusage ?gridusage . }
+  OPTIONAL { ?obs measure:energy ?energy . }
+  OPTIONAL { ?obs measure:aidfee ?aidfee . }
+  OPTIONAL { ?obs measure:charge ?charge . }
+  OPTIONAL { ?obs measure:meteringrate ?meteringrate . }
+
+  # Get human-readable labels
+  OPTIONAL { ?municipality schema:name ?municipalityLabel . }
+  OPTIONAL { ?operator schema:name ?operatorLabel . }
+  OPTIONAL { ?category schema:name ?categoryLabel . }
+  OPTIONAL { ?product schema:name ?productLabel . }
+
+  # Filter for recent years
+  FILTER(?period >= "2021" && ?period <= "2026")
+}
+ORDER BY ?municipalityLabel ?operatorLabel ?period ?categoryLabel ?productLabel
+
+
+-- ------------------------------------------------------------------
+-- Query 9: Find Highest and Lowest Prices in 2024
+-- ------------------------------------------------------------------
+-- Returns: Top 10 most expensive and cheapest municipalities
+
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT
+  ?municipalityLabel
+  ?operatorLabel
+  ?categoryLabel
+  ?total
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period "2024" ;
+       elcom:category ?category ;
+       measure:total ?total .
+
+  ?municipality schema:name ?municipalityLabel .
+  ?operator schema:name ?operatorLabel .
+  ?category schema:name ?categoryLabel .
+
+  # Filter for standard household category H4 (typical consumption)
+  FILTER(CONTAINS(?categoryLabel, "H4"))
+}
+ORDER BY DESC(?total)
+LIMIT 10
+
+
+-- ------------------------------------------------------------------
+-- Query 10: Discover All Properties
+-- ------------------------------------------------------------------
+-- Returns: All properties used in observations
+-- Use this to explore the dataset structure
+
+PREFIX cube: <https://cube.link/>
+
+SELECT DISTINCT ?property
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       ?property ?value .
+}
+ORDER BY ?property
+LIMIT 100
+
+
+-- ==================================================================
+-- Usage in Python
+-- ==================================================================
+--
+-- import requests
+--
+-- query = """
+-- [paste query here]
+-- """
+--
+-- response = requests.post(
+--     "https://lindas.admin.ch/query",
+--     data={'query': query},
+--     headers={'Accept': 'application/sparql-results+json'},
+--     timeout=180
+-- )
+--
+-- data = response.json()
+-- results = data['results']['bindings']
+--
+-- ==================================================================
