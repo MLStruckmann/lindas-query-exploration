@@ -1,9 +1,4 @@
-# Generated data files
-*.csv
-extraction_log.txt
-discovery_log.txt
-
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,12 +20,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+# Generated files
+*.csv
+extraction_log.txt
+discovery_log.txt
 
 # IDE
 .vscode/
@@ -43,3 +36,9 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/

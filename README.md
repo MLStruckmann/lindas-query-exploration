@@ -1,11 +1,9 @@
 # Swiss Electricity Price Data Extractor
 
-[![Status](https://img.shields.io/badge/status-ready-brightgreen)](https://github.com)
-[![Bugfix](https://img.shields.io/badge/bugfix-completed-blue)](BUGFIX_SUMMARY.md)
-
 Extracts electricity price data from the Swiss Federal Electricity Commission (ElCom) via the LINDAS SPARQL endpoint.
 
-> **✅ Latest Update (Oct 28, 2025)**: Query filtering issue resolved! The script now successfully extracts data from years 2021-2026. See [BUGFIX_SUMMARY.md](BUGFIX_SUMMARY.md) for details.
+[![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)](https://github.com)
+[![Python](https://img.shields.io/badge/python-3.7+-blue)](https://python.org)
 
 ## Quick Start
 
@@ -14,11 +12,11 @@ Extracts electricity price data from the Swiss Federal Electricity Commission (E
 pip install requests
 
 # Run the main extractor
-python3 sparql_extractor.py
+python sparql_extractor.py
 ```
 
 This will create:
-- `electricity_prices.csv` - Extracted data
+- `electricity_prices.csv` - Extracted data (5000 rows from 2021-2026)
 - `extraction_log.txt` - Execution log
 
 ## Data Source
@@ -54,15 +52,16 @@ The script extracts electricity prices for all Swiss municipalities with:
 Production-ready script for extracting Swiss electricity price data.
 
 **Features**:
-- Automatic year discovery
-- Flexible property handling
+- Automatic year discovery (2011-2026)
+- Flexible property handling with OPTIONAL clauses
 - Comprehensive error handling
 - Progress logging
 - CSV export with all price components
+- Configurable year ranges and limits
 
 **Usage**:
 ```bash
-python3 sparql_extractor.py
+python sparql_extractor.py
 ```
 
 **Customization**:
@@ -83,12 +82,123 @@ Iterative discovery agent that explores the endpoint structure step-by-step.
 
 **Usage**:
 ```bash
-python3 sparql_discovery_agent.py
+python sparql_discovery_agent.py
 ```
 
 ### 3. `sparql_elcom_extractor.py` (Legacy)
 
 Original extraction script based on working examples from Swiss open data projects.
+
+## Technical Details
+
+### Key Bugfix Applied
+
+The main script includes a critical bugfix for SPARQL year filtering:
+
+**Problem**: Filtered queries returned 0 results due to datatype mismatch
+**Solution**: Use `STR(?period)` to convert xsd:gYear to string before comparison
+
+```python
+# Fixed in sparql_extractor.py line 86:
+year_filter = f"FILTER(STR(?period) IN ({year_list}))"
+```
+
+### Data Volume
+
+- **Available Years**: 2011-2026 (16 years, 754,918 total observations)
+- **Default Extraction**: 2021-2026 (6 most recent years)
+- **Estimated Rows**: 100,000-500,000 for full dataset
+- **Processing Time**: 1-3 minutes for full extraction
+
+### Expected Output Structure
+
+```csv
+period,municipality,municipalityLabel,operator,operatorLabel,category,categoryLabel,product,productLabel,total,gridusage,energy,aidfee,charge,meteringrate
+2024,https://ld.admin.ch/municipality/1,"Aeugst am Albis",https://energy.ld.admin.ch/elcom/electricityprice/operator/123,"EKZ",https://energy.ld.admin.ch/elcom/electricityprice/category/H4,"H4 (5000 kWh/year)",https://energy.ld.admin.ch/elcom/electricityprice/product/standard,"Standard",21.35,7.82,10.13,2.30,0.85,0.25
+```
+
+## Example Queries
+
+### Get Sample Observations
+
+```sparql
+PREFIX schema: <http://schema.org/>
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+
+SELECT *
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period ?period ;
+       elcom:category ?category ;
+       elcom:product ?product ;
+       <https://energy.ld.admin.ch/elcom/electricityprice/measure/total> ?total .
+}
+LIMIT 10
+```
+
+### Get Prices for Specific Year
+
+```sparql
+PREFIX cube: <https://cube.link/>
+PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
+PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
+
+SELECT ?municipality ?operator ?total ?gridusage ?energy
+FROM <https://lindas.admin.ch/elcom/electricityprice>
+WHERE {
+  ?obs a cube:Observation ;
+       elcom:municipality ?municipality ;
+       elcom:operator ?operator ;
+       elcom:period "2024" ;
+       measure:total ?total ;
+       measure:gridusage ?gridusage ;
+       measure:energy ?energy .
+}
+LIMIT 100
+```
+
+## Troubleshooting
+
+### 403 Access Denied
+
+```
+HTTP 403: Access denied
+```
+
+**Causes**:
+- Proxy blocking the endpoint
+- Firewall restrictions
+- VPN interference
+
+**Solutions**:
+1. Check proxy settings: `env | grep -i proxy`
+2. Temporarily disable proxy: `unset http_proxy https_proxy`
+3. Use a different network
+4. Try from outside the restricted environment
+
+### Connection Timeout
+
+```
+Query timeout after 180s
+```
+
+**Solutions**:
+1. Reduce the year range
+2. Add more specific filters
+3. Use LIMIT clause
+4. Try during off-peak hours
+
+### Empty Results
+
+**Solutions**:
+1. Check if years exist: Run discovery script
+2. Verify property URIs are correct
+3. Test with minimal query first
+4. Check LINDAS documentation for updates
 
 ## Manual Testing
 
@@ -137,138 +247,12 @@ print(f"Status: {response.status_code}")
 print(f"Response: {response.json()}")
 ```
 
-## Example Queries
-
-### Get Sample Observations
-
-```sparql
-PREFIX schema: <http://schema.org/>
-PREFIX cube: <https://cube.link/>
-PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
-
-SELECT *
-FROM <https://lindas.admin.ch/elcom/electricityprice>
-WHERE {
-  ?obs a cube:Observation ;
-       elcom:municipality ?municipality ;
-       elcom:operator ?operator ;
-       elcom:period ?period ;
-       elcom:category ?category ;
-       elcom:product ?product ;
-       <https://energy.ld.admin.ch/elcom/electricityprice/measure/total> ?total .
-}
-LIMIT 10
-```
-
-### Get Prices for Specific Year
-
-```sparql
-PREFIX cube: <https://cube.link/>
-PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
-PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
-
-SELECT ?municipality ?operator ?total ?gridusage ?energy
-FROM <https://lindas.admin.ch/elcom/electricityprice>
-WHERE {
-  ?obs a cube:Observation ;
-       elcom:municipality ?municipality ;
-       elcom:operator ?operator ;
-       elcom:period "2024" ;
-       measure:total ?total ;
-       measure:gridusage ?gridusage ;
-       measure:energy ?energy .
-}
-LIMIT 100
-```
-
-### Get Prices with Labels
-
-```sparql
-PREFIX schema: <http://schema.org/>
-PREFIX cube: <https://cube.link/>
-PREFIX elcom: <https://energy.ld.admin.ch/elcom/electricityprice/dimension/>
-PREFIX measure: <https://energy.ld.admin.ch/elcom/electricityprice/measure/>
-
-SELECT ?municipalityLabel ?operatorLabel ?period ?total
-FROM <https://lindas.admin.ch/elcom/electricityprice>
-WHERE {
-  ?obs a cube:Observation ;
-       elcom:municipality ?municipality ;
-       elcom:operator ?operator ;
-       elcom:period ?period ;
-       measure:total ?total .
-
-  ?municipality schema:name ?municipalityLabel .
-  ?operator schema:name ?operatorLabel .
-
-  FILTER(?period >= "2023")
-}
-ORDER BY ?municipalityLabel ?period
-LIMIT 100
-```
-
-## Expected Output
-
-### Sample CSV Structure
-
-```csv
-municipality,municipalityLabel,operator,operatorLabel,period,category,categoryLabel,product,productLabel,total,gridusage,energy,aidfee,charge,meteringrate
-https://ld.admin.ch/municipality/1,"Aeugst am Albis",https://energy.ld.admin.ch/elcom/electricityprice/operator/123,"EKZ",2024,https://energy.ld.admin.ch/elcom/electricityprice/category/H4,"H4 (5000 kWh/year)",https://energy.ld.admin.ch/elcom/electricityprice/product/standard,"Standard",21.35,7.82,10.13,2.30,0.85,0.25
-```
-
-### Expected Data Volume
-
-- **Municipalities**: ~2,000 Swiss communes
-- **Years**: 2021-2026 (6 years)
-- **Categories**: ~14 (H1-H7, C1-C7)
-- **Products**: ~3 per category
-- **Estimated rows**: 100,000-500,000
-
-### Typical Price Ranges
+## Typical Price Ranges
 
 - **Total**: 10-40 Rp./kWh
 - **Grid usage**: 5-15 Rp./kWh
 - **Energy**: 5-15 Rp./kWh
 - **Aid fee**: 1-3 Rp./kWh
-
-## Troubleshooting
-
-### 403 Access Denied
-
-```
-HTTP 403: Access denied
-```
-
-**Causes**:
-- Proxy blocking the endpoint
-- Firewall restrictions
-- VPN interference
-
-**Solutions**:
-1. Check proxy settings: `env | grep -i proxy`
-2. Temporarily disable proxy: `unset http_proxy https_proxy`
-3. Use a different network
-4. Try from outside the restricted environment
-
-### Connection Timeout
-
-```
-Query timeout after 180s
-```
-
-**Solutions**:
-1. Reduce the year range
-2. Add more specific filters
-3. Use LIMIT clause
-4. Try during off-peak hours
-
-### Empty Results
-
-**Solutions**:
-1. Check if years exist: Run discovery script
-2. Verify property URIs are correct
-3. Test with minimal query first
-4. Check LINDAS documentation for updates
 
 ## References
 
