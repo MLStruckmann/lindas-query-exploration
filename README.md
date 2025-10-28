@@ -2,25 +2,14 @@
 
 Extracts electricity price data from the Swiss Federal Electricity Commission (ElCom) via the LINDAS SPARQL endpoint.
 
-## Network Access Issue
-
-**Current Status**: The environment's proxy (21.0.0.69:15002) is blocking access to lindas.admin.ch with "Access denied" errors.
-
-To use these scripts, you need:
-- ✗ No proxy blocking lindas.admin.ch
-- ✗ Direct HTTPS access to lindas.admin.ch
-- ✓ Python 3.7+ with `requests` library
-
 ## Quick Start
-
-Once you have unrestricted network access:
 
 ```bash
 # Install dependencies
 pip install requests
 
-# Run the extractor
-python3 sparql_elcom_extractor.py
+# Run the main extractor
+python3 sparql_extractor.py
 ```
 
 This will create:
@@ -55,26 +44,26 @@ The script extracts electricity prices for all Swiss municipalities with:
 
 ## Scripts Included
 
-### 1. `sparql_elcom_extractor.py` (Recommended)
+### 1. `sparql_extractor.py` (Main Script)
 
-Production-ready script based on working examples from Swiss open data projects.
+Production-ready script for extracting Swiss electricity price data.
 
 **Features**:
-- Clean, maintainable code
+- Automatic year discovery
+- Flexible property handling
 - Comprehensive error handling
 - Progress logging
-- Automatic CSV export
-- Based on proven query patterns
+- CSV export with all price components
 
 **Usage**:
 ```bash
-python3 sparql_elcom_extractor.py
+python3 sparql_extractor.py
 ```
 
 **Customization**:
 ```python
-extractor = ElComDataExtractor()
-extractor.run(start_year="2020", end_year="2025")
+extractor = FinalElComExtractor()
+extractor.run(target_years=["2021", "2022", "2023"], limit=1000)
 ```
 
 ### 2. `sparql_discovery_agent.py`
@@ -92,9 +81,9 @@ Iterative discovery agent that explores the endpoint structure step-by-step.
 python3 sparql_discovery_agent.py
 ```
 
-### 3. `test_endpoint.py`
+### 3. `sparql_elcom_extractor.py` (Legacy)
 
-Simple test script to verify endpoint connectivity.
+Original extraction script based on working examples from Swiss open data projects.
 
 ## Manual Testing
 
