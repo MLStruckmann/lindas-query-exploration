@@ -1,6 +1,11 @@
 # Swiss Electricity Price Data Extractor
 
+[![Status](https://img.shields.io/badge/status-ready-brightgreen)](https://github.com)
+[![Bugfix](https://img.shields.io/badge/bugfix-completed-blue)](BUGFIX_SUMMARY.md)
+
 Extracts electricity price data from the Swiss Federal Electricity Commission (ElCom) via the LINDAS SPARQL endpoint.
+
+> **✅ Latest Update (Oct 28, 2025)**: Query filtering issue resolved! The script now successfully extracts data from years 2021-2026. See [BUGFIX_SUMMARY.md](BUGFIX_SUMMARY.md) for details.
 
 ## Quick Start
 

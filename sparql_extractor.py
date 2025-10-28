@@ -79,10 +79,11 @@ class FinalElComExtractor:
         """Extract data with flexible property requirements."""
         
         # Build year filter
+        # Note: period is stored as xsd:gYear, so we need to convert to string
         year_filter = ""
         if years:
             year_list = ", ".join([f'"{y}"' for y in years])
-            year_filter = f"FILTER(?period IN ({year_list}))"
+            year_filter = f"FILTER(STR(?period) IN ({year_list}))"
         
         # Build limit clause
         limit_clause = f"LIMIT {limit}" if limit else ""
@@ -93,26 +94,30 @@ class FinalElComExtractor:
         SELECT 
           ?obs
           ?period 
+          ?municipality
+          ?operator
           ?category 
+          ?product
           ?total 
           ?energy 
           ?gridusage 
           ?aidfee 
           ?charge 
-          ?product
           ?meteringrate
           ?annualmeteringcost
         FROM <https://lindas.admin.ch/elcom/electricityprice>
         WHERE {{
           ?obs a cube:Observation ;
-               <https://energy.ld.admin.ch/elcom/electricityprice/dimension/period> ?period .
-               
-          # Required properties
-          ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/total> ?total .
+               <https://energy.ld.admin.ch/elcom/electricityprice/dimension/period> ?period ;
+               <https://energy.ld.admin.ch/elcom/electricityprice/dimension/total> ?total .
           
-          # Optional properties - use OPTIONAL to handle missing data
+          # Optional dimensions - keep query fast by not fetching labels
+          OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/municipality> ?municipality . }}
+          OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/operator> ?operator . }}
           OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/category> ?category . }}
           OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/product> ?product . }}
+          
+          # Optional price components
           OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/energy> ?energy . }}
           OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/gridusage> ?gridusage . }}
           OPTIONAL {{ ?obs <https://energy.ld.admin.ch/elcom/electricityprice/dimension/aidfee> ?aidfee . }}
@@ -122,7 +127,7 @@ class FinalElComExtractor:
           
           {year_filter}
         }}
-        ORDER BY ?period ?category ?product
+        ORDER BY ?period ?municipality ?category ?product
         {limit_clause}
         """
         
